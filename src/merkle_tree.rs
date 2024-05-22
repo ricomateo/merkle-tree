@@ -1,17 +1,18 @@
-use sha256::{digest};
+use sha256::digest;
 
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct MerkleTree {
     root: Node,
 }
 
-/// A Merkle Tree node which contains its hashed value,
-/// height (0 corresponds to a leaf), left and right 
-/// child nodes.
-/// Leaf nodes has no childs.
-#[derive(Debug, Clone)]
+/// A (merkle tree) Node. 
+/// Each node contains:
+///   * hashed value,
+///   * height in the tree (0 corresponds to a leaf),
+///   * left and right child nodes (leaf nodes has no childs, i.e, left = right = None)
+#[derive(Debug, Clone, PartialEq)]
 struct Node {
     hash: String,
     height: usize,
@@ -22,6 +23,7 @@ struct Node {
 fn hash(data: String) -> String {
     digest(data)
 }
+
 
 impl MerkleTree {
 
@@ -40,7 +42,6 @@ impl MerkleTree {
             return nodes;
         }
         let mut parent_nodes: Vec<Node> = Vec::new();
-        let mut i = 0;
 
         // For each pair of two consecutive nodes (there are len/2 pairs),
         // we create the corresponding parent, which holds a reference
@@ -50,10 +51,9 @@ impl MerkleTree {
         // nodes = [1, 2, 3, 4]
         // then (1, 2) is a pair, so we create their parent.
         // the same goes for (3, 4). 
-        for _ in 0..len/2 {
+        for i in (0..len).step_by(2) {
             let left_node = &nodes[i];
             let right_node = &nodes[i + 1];
-            i += 2;
 
             let parent = Node{
                 hash: hash(left_node.hash.clone() + &right_node.hash.clone()),
@@ -68,3 +68,32 @@ impl MerkleTree {
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Creates a Merkle Tree node by node (tree_by_hand) from a vector of strings and compares
+    /// it to a Merkle Tree created with the constructor
+    #[test]
+    fn merkle_tree_is_created_correctly() {
+        let elements = vec![String::from("A"), String::from("B"), String::from("C"), String::from("D")];
+
+        let leaf_node_0 = Node{hash: hash(elements[0].clone()), height: 0, left: None, right: None};
+        let leaf_node_1 = Node{hash: hash(elements[1].clone()), height: 0, left: None, right: None};
+        let leaf_node_2 = Node{hash: hash(elements[2].clone()), height: 0, left: None, right: None};
+        let leaf_node_3 = Node{hash: hash(elements[3].clone()), height: 0, left: None, right: None};
+        
+        
+        let node01 = Node{hash: hash(leaf_node_0.hash.clone() + &leaf_node_1.hash), height: 1, left: Some(Box::new(leaf_node_0)), right: Some(Box::new(leaf_node_1))};
+        let node23 = Node{hash: hash(leaf_node_2.hash.clone() + &leaf_node_3.hash), height: 1, left: Some(Box::new(leaf_node_2)), right: Some(Box::new(leaf_node_3))};
+        let root = Node{hash: hash(node01.hash.clone() + &node23.hash), height: 2, left: Some(Box::new(node01)), right: Some(Box::new(node23))};
+        
+        let tree_by_hand = MerkleTree{root: root};
+        
+        let tree = MerkleTree::new(elements);
+        
+        assert_eq!(tree_by_hand, tree);
+         
+    }
+}
